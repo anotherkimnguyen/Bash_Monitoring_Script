@@ -41,6 +41,8 @@ The script generates a weekly system report and sends it to my email. This inclu
 
 Instead of using pre-built graphical monitoring tools, I opted for an interactive `dialog` interface that provides a clean and concise overview of the system's current state. The use of `dialog` ensures that I can quickly view the metrics in a user-friendly, terminal-based environment. This choice aligns with the exercise's goal to build a custom, hands-on monitoring solution rather than relying on pre-made solutions.
 
+![alt text](assets/bash_monitoring_script.png)
+
 ## Why This Approach?
 
 This monitoring script is designed to:
