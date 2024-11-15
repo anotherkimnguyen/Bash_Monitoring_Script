@@ -24,6 +24,33 @@ The script tracks the following key system metrics:
 
 8. **Network Activity**: Monitoring network traffic (bytes received and sent) helps detect unusual patterns that might suggest malicious activity or network congestion.
 
+~~~
+# Collect system metrics
+CPU_USAGE=$(mpstat 1 1 | grep "Average" | awk '{print 100 - $12}')
+MEMORY_USAGE=$(free | grep Mem | awk '{print $3/$2 * 100.0}')
+DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+
+# System load (1, 5, 15 minute load averages)
+SYSTEM_LOAD=$(uptime | awk -F'load average: ' '{ print $2 }')
+
+# Firewall status check: Check if any rules exist in iptables
+FIREWALL_STATUS=$(sudo iptables -L | grep -i "Chain" | wc -l)
+if (( FIREWALL_STATUS > 0 )); then
+    FIREWALL_STATUS="active"
+else
+    FIREWALL_STATUS="inactive"
+fi
+
+# Count failed login attempts (excluding SSH) since the last run
+FAILED_LOGINS=$(sudo grep -i "Failed password" /var/log/auth.log | grep -v "sshd" | awk -v last_run="$LAST_RUN_TIMESTAMP" '$0 ~ last_run {print $0}' | wc -l)
+
+# Count failed SSH login attempts since the last run
+FAILED_SSH_LOGINS=$(sudo grep -i "Failed password" /var/log/auth.log | grep -i "sshd" | awk -v last_run="$LAST_RUN_TIMESTAMP" '$0 ~ last_run {print $0}' | wc -l)
+
+# Network activity (bytes received and sent)
+NET_STATS=$(cat /proc/net/dev | grep -i 'enp0s3' | awk '{print $2,$10}')
+~~~
+
 ## Email Notifications
 
 The script sends email notifications if any of the following conditions are met:
@@ -33,11 +60,53 @@ The script sends email notifications if any of the following conditions are met:
 - **Firewall Inactivity**: If the firewall is inactive, this is flagged as a critical security issue.
 - **Multiple Failed Login Attempts**: More than 3 failed login attempts, whether via SSH or other means, are considered suspicious and trigger an alert.
 
+~~~
+# Check if any metrics exceed thresholds and trigger email notifications
+NOTIFY=""
+
+if (( $(echo "$CPU_USAGE > 90" | bc -l) )); then
+    NOTIFY="CPU usage is above 90%: $CPU_USAGE%"
+fi
+
+if (( $(echo "$MEMORY_USAGE > 90" | bc -l) )); then
+    NOTIFY="Memory usage is above 90%: $MEMORY_USAGE%"
+fi
+
+if (( DISK_USAGE > 90 )); then
+    NOTIFY="Disk usage is above 90%: $DISK_USAGE%"
+fi
+
+if [[ "$FIREWALL_STATUS" == "inactive" ]]; then
+    NOTIFY="Firewall is inactive"
+fi
+
+if (( FAILED_LOGINS > 3 )); then
+    NOTIFY="More than 3 failed login attempts: $FAILED_LOGINS"
+fi
+
+if (( FAILED_SSH_LOGINS > 3 )); then
+    NOTIFY="More than 3 failed SSH login attempts: $FAILED_SSH_LOGINS"
+fi
+
+# If any condition triggered, send an email
+if [[ -n "$NOTIFY" ]]; then
+    send_email "$NOTIFY"
+fi
+~~~
+
 ## Weekly System Report
 
 The script generates a weekly system report and sends it to my email. This includes:
 - The top 10 running processes for the week (to identify any unusual or resource-heavy processes).
 - A summary of the system metrics logged during the week, allowing me to track overall system health.
+
+~~~
+# Weekly report generation
+if [[ "$(date +%u)" -eq 7 ]]; then
+    REPORT="Weekly System Report\n\nTop 10 Processes:\n$TOP_PROCESSES\n\nMetrics for the past week:\n$(cat "$CSV_FILE")"
+    send_email "$REPORT"
+fi
+~~~
 
 ## User Interface
 
@@ -53,4 +122,4 @@ This monitoring script is designed to:
 - Store the metrics in a CSV file for historical tracking and analysis.
 - Provide an interactive interface that presents system metrics in a readable, real-time format.
 
-By customizing this monitoring solution, I gain a deeper understanding of system resource management and the value of proactive monitoring. It also offers flexibility, allowing for further improvements or modifications as new needs arise.
+By customising this monitoring solution, I gain a deeper understanding of system resource management and the value of proactive monitoring. It also offers flexibility, allowing for further improvements or modifications as new needs arise.
