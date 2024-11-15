@@ -1,5 +1,7 @@
 # System Monitoring Script using Bash and Dialog
 
+![alt text](assets/bash_monitoring_script_small.png)
+
 This project implements a custom monitoring script for a Linux-based system. The purpose of this script is to collect system metrics, store them in a CSV file, and send email notifications for critical system states, such as high resource usage or security concerns. The script is run periodically using cron jobs, ensuring that system health is regularly monitored.
 
 ## Metrics Collected
